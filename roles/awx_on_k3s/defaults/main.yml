@@ -1,0 +1,4 @@
+---
+puppeteers_kubernetes_awx_on_k3s_staging_directory: /root/puppeteers-kubernetes-awx-on-k3s-staging
+puppeteers_kubernetes_awx_on_k3s_awx_version: 2.19.1
+

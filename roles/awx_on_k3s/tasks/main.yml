@@ -1,0 +1,78 @@
+---
+- name: Validate parameters
+  ansible.builtin.assert:
+    that:
+      - puppeteers_kubernetes_awx_on_k3s_awx_hostname is string
+      - puppeteers_kubernetes_awx_on_k3s_awx_version is string
+      - puppeteers_kubernetes_awx_on_k3s_staging_directory is string
+      - puppeteers_kubernetes_awx_on_k3s_postgresql_password is defined
+      - puppeteers_kubernetes_awx_on_k3s_awx_admin_password is defined
+
+- name: Install awx dependencies
+  ansible.builtin.package:
+    name:
+      - git
+      - curl
+
+- name: Clone awx-on-k3s project
+  ansible.builtin.git:
+    repo: "https://github.com/kurokobo/awx-on-k3s"
+    dest: "{{ puppeteers_kubernetes_awx_on_k3s_staging_directory }}/awx-on-k3s"
+    update: false
+    version: "{{ puppeteers_kubernetes_awx_on_k3s_awx_version }}"
+
+- name: Install AWX operator
+  ansible.builtin.shell:
+    chdir: "{{ puppeteers_kubernetes_awx_on_k3s_staging_directory }}/awx-on-k3s"
+    cmd: "/usr/local/bin/kubectl get namespaces/awx || /usr/local/bin/kubectl apply -k operator"
+
+- name: Wait until AWX operator installation has finished
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/kubectl wait deployment -n awx -l control-plane=controller-manager --timeout 300s --for condition=available"
+
+- name: Create self-signed certificate for AWX
+  ansible.builtin.shell:
+    chdir: "{{ puppeteers_kubernetes_awx_on_k3s_staging_directory }}/awx-on-k3s"
+    cmd: "openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -out ./base/tls.crt -keyout ./base/tls.key -subj \"/CN={{ puppeteers_kubernetes_awx_on_k3s_awx_hostname }}/O={{ puppeteers_kubernetes_awx_on_k3s_awx_hostname }}\" -addext \"subjectAltName = DNS:{{ puppeteers_kubernetes_awx_on_k3s_awx_hostname }}\""
+    creates: "{{ puppeteers_kubernetes_awx_on_k3s_staging_directory }}/awx-on-k3s/base/tls.crt"
+
+- name: Manage AWX base configuration
+  ansible.builtin.template:
+    src: "templates/awx.yaml-{{ puppeteers_kubernetes_awx_on_k3s_awx_version }}"
+    dest: "{{ puppeteers_kubernetes_awx_on_k3s_staging_directory }}/awx-on-k3s/base/awx.yaml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Manage AWS kustomizations
+  ansible.builtin.template:
+    src: "templates/kustomization.yaml-{{ puppeteers_kubernetes_awx_on_k3s_awx_version }}"
+    dest: "{{ puppeteers_kubernetes_awx_on_k3s_staging_directory }}/awx-on-k3s/base/kustomization.yaml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Create persistent volume for postgresql
+  ansible.builtin.file:
+    path: /data/postgres-15
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Create persistent volume for AWX projects
+  ansible.builtin.file:
+    path: /data/projects
+    state: directory
+    owner: 1000
+    group: 0
+    mode: "0750"
+
+- name: Deploy AWX with kubectl
+  ansible.builtin.shell:
+    cmd: "/usr/local/bin/kubectl get deployments/awx-web -n awx || /usr/local/bin/kubectl apply -k base"
+    chdir: "{{ puppeteers_kubernetes_awx_on_k3s_staging_directory }}/awx-on-k3s"
+
+- name: Wait until AWX installation has finished
+  ansible.builtin.shell:
+    cmd: "/usr/local/bin/kubectl wait --timeout 15m --for create deployments/awx-web -n awx; /usr/local/bin/kubectl wait --timeout 15m --for condition=available deployments/awx-web -n awx"

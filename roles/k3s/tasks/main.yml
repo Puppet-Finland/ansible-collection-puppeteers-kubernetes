@@ -1,4 +1,10 @@
 ---
+- name: Validate k3s parameters
+  ansible.builtin.assert:
+    that:
+      - puppeteers_kubernetes_k3s_staging_directory is string
+      - puppeteers_kubernetes_k3s_disable_conflicting_services is boolean
+
 - name: Create staging directory
   ansible.builtin.file:
     path: "{{ puppeteers_kubernetes_k3s_staging_directory }}"
@@ -6,9 +12,39 @@
     owner: root
     group: root
 
+- name: Disable conflicting services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  ignore_errors: true
+  loop:
+    - firewalld.service
+    - nm-cloud-setup.service
+    - nm-cloud-setup.timer
+  when: puppeteers_kubernetes_k3s_disable_conflicting_services
+
 - name: Copy k3s installation script
   ansible.builtin.copy:
     src: files/install-k3s.sh
     dest: "{{ puppeteers_kubernetes_k3s_staging_directory }}/install-k3s.sh"
     owner: root
     group: root
+    mode: "0755"
+
+- name: Run k3s installation script
+  ansible.builtin.shell:
+    cmd: "cat {{ puppeteers_kubernetes_k3s_staging_directory }}/install-k3s.sh|sh -s - --write-kubeconfig-mode 644"
+    creates: /usr/local/bin/kubectl
+
+- name: Wait until Kubernetes API server is up
+  ansible.builtin.wait_for:
+    state: started
+    host: 127.0.0.1
+    port: 6443
+    delay: 10
+
+- name: Fix k3s.yaml permissions
+  ansible.builtin.file:
+    path: /etc/rancher/k3s/k3s.yaml
+    mode: '0644'
