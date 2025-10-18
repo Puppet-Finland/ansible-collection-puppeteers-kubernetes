@@ -1,0 +1,5 @@
+---
+puppeteers_kubernetes_apply_yaml_kubectl: /usr/local/bin/kubectl
+puppeteers_kubernetes_apply_yaml_staging_directory: /root/puppeteers-kubernetes-apply_yaml-staging
+puppeteers_kubernetes_apply_yaml_present: []
+puppeteers_kubernetes_apply_yaml_absent: []

@@ -1,0 +1,4 @@
+---
+- name: Apply Kubernetes configurations
+  ansible.builtin.command:
+    cmd: "{{ puppeteers_kubernetes_apply_yaml_kubectl }} apply -f {{ puppeteers_kubernetes_apply_yaml_staging_directory }}"

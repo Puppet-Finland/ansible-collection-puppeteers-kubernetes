@@ -1,0 +1,37 @@
+---
+- name: Validate parameters
+  ansible.builtin.assert:
+    that:
+      - puppeteers_kubernetes_apply_yaml_staging_directory is string
+      - puppeteers_kubernetes_apply_yaml_src is string
+      - puppeteers_kubernetes_apply_yaml_present is not string and puppeteers_kubernetes_apply_yaml_present is not mapping and puppeteers_kubernetes_apply_yaml_present is iterable
+      - puppeteers_kubernetes_apply_yaml_absent is not string and puppeteers_kubernetes_apply_yaml_absent is not mapping and puppeteers_kubernetes_apply_yaml_absent is iterable
+
+- name: Create staging directory
+  ansible.builtin.file:
+    path: "{{ puppeteers_kubernetes_apply_yaml_staging_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Set list of desired yaml files
+  ansible.builtin.set_fact:
+    present_k8s_configs: "{{ puppeteers_kubernetes_apply_yaml_present }}"
+    absent_k8s_configs: "{{ puppeteers_kubernetes_apply_yaml_absent }}"
+
+- name: Ensure that desired Kubernetes config files are present
+  ansible.builtin.template:
+    src: "{{ puppeteers_kubernetes_apply_yaml_src }}/{{ item }}.yaml"
+    dest: "{{ puppeteers_kubernetes_apply_yaml_staging_directory }}/{{ item }}.yaml"
+    owner: root
+    group: root
+    mode: '0640'
+  loop: "{{ present_k8s_configs }}"
+  notify:
+    - Apply Kubernetes configurations
+
+- name: Ensure that undesired Kubernetes resources and configs are absent
+  ansible.builtin.shell:
+    cmd: "test -f {{ puppeteers_kubernetes_apply_yaml_staging_directory }}/{{ item }}.yaml && ({{ puppeteers_kubernetes_apply_yaml_kubectl }} delete -f {{ puppeteers_kubernetes_apply_yaml_staging_directory }}/{{ item }}.yaml ; rm -f {{ puppeteers_kubernetes_apply_yaml_staging_directory }}/{{ item }}.yaml) || true"
+  loop: "{{ absent_k8s_configs }}"
