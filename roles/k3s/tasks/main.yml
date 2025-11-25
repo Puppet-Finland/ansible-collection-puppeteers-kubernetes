@@ -5,6 +5,13 @@
       - puppeteers_kubernetes_k3s_staging_directory is string
       - puppeteers_kubernetes_k3s_disable_conflicting_services is boolean
 
+# https://github.com/k3s-io/k3s/issues/12600
+- name: Ensure that required kernel modules are installed
+  ansible.builtin.package:
+    name: kernel-modules-extra
+    state: present
+  when: ansible_facts["distribution_file_path"] == "/etc/redhat-release"
+
 - name: Create staging directory
   ansible.builtin.file:
     path: "{{ puppeteers_kubernetes_k3s_staging_directory }}"
