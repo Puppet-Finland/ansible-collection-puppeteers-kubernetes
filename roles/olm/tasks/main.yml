@@ -1,79 +1,81 @@
 ---
-- name: Create staging directory
-  ansible.builtin.file:
-    path: "{{ puppeteers_kubernetes_olm_staging_directory }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0750'
-
-- name: Fetch operator-sdk binary
-  ansible.builtin.get_url:
-    url: "{{ puppeteers_kubernetes_olm_base_url }}/{{ puppeteers_kubernetes_olm_version }}/{{ puppeteers_kubernetes_olm_filename }}"
-    dest: "{{ puppeteers_kubernetes_olm_staging_directory }}/{{ puppeteers_kubernetes_olm_filename }}"
-
-- name: Fetch operator-sdk checksum file
-  ansible.builtin.get_url:
-    url: "{{ puppeteers_kubernetes_olm_base_url }}/{{ puppeteers_kubernetes_olm_version }}/checksums.txt"
-    dest: "{{ puppeteers_kubernetes_olm_staging_directory }}/checksums.txt"
-
-- name: Fetch operator-sdk checksum file signatures
-  ansible.builtin.get_url:
-    url: "{{ puppeteers_kubernetes_olm_base_url }}/{{ puppeteers_kubernetes_olm_version }}/checksums.txt.asc"
-    dest: "{{ puppeteers_kubernetes_olm_staging_directory }}/checksums.txt.asc"
-
-- name: Import operator-sdk public GPG key
-  ansible.builtin.command:
-    cmd: gpg --keyserver keyserver.ubuntu.com --recv-keys 052996E2A20B5C7E
-
-- name: Validate operator-sdk installation with sha1sum
-  ansible.builtin.shell:
-    cmd: "cd {{ puppeteers_kubernetes_olm_staging_directory }} && grep {{ puppeteers_kubernetes_olm_filename }} checksums.txt | sha256sum -c -"
-
-- name: Validate operator-sdk GPG signature
-  ansible.builtin.shell:
-    cmd: "cd {{ puppeteers_kubernetes_olm_staging_directory }} && gpg -u 'Operator SDK (release) <cncf-operator-sdk@cncf.io>' --verify checksums.txt.asc"
-
-- name: Copy operator-sdk to /usr/local/bin
-  ansible.builtin.copy:
-    src: "{{ puppeteers_kubernetes_olm_staging_directory }}/{{ puppeteers_kubernetes_olm_filename }}"
-    remote_src: true
-    dest: /usr/local/bin/operator-sdk
-    owner: root
-    group: root
-    mode: '0755'
-
-- name: Check if we're running in k3s
-  ansible.builtin.stat:
-    path: /etc/rancher/k3s/k3s.yaml
-  register: k3s_config
-
-- name: Create ~/.kube directory
-  ansible.builtin.file:
-    path: /root/.kube
-    state: directory
-    owner: root
-    group: root
-    mode: '0750'
-  when: k3s_config.stat.exists
-
-- name: Copy Rancher k3s.yaml to ~/.kube/config
-  ansible.builtin.copy:
-    src: /etc/rancher/k3s/k3s.yaml
-    remote_src: true
-    dest: /root/.kube/config
-    owner: root
-    group: root
-    mode: '0644'
-  when: k3s_config.stat.exists
-
 - name: Check if OLM is already installed
   ansible.builtin.shell:
     cmd: "/usr/local/bin/operator-sdk olm status 2>&1|grep 'Successfully got OLM status for version'"
   ignore_errors: true
   register: olm_status_cmd
 
-- name: Install Operator Lifecycle Manager
-  ansible.builtin.command:
-    cmd: /usr/local/bin/operator-sdk olm install
+- name: Set up Operator Lifecycle Manager if not present already
   when: olm_status_cmd.rc != 0
+  block:
+    - name: Create staging directory
+      ansible.builtin.file:
+        path: "{{ puppeteers_kubernetes_olm_staging_directory }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0750'
+
+    - name: Fetch operator-sdk binary
+      ansible.builtin.get_url:
+        url: "{{ puppeteers_kubernetes_olm_base_url }}/{{ puppeteers_kubernetes_olm_version }}/{{ puppeteers_kubernetes_olm_filename }}"
+        dest: "{{ puppeteers_kubernetes_olm_staging_directory }}/{{ puppeteers_kubernetes_olm_filename }}"
+
+    - name: Fetch operator-sdk checksum file
+      ansible.builtin.get_url:
+        url: "{{ puppeteers_kubernetes_olm_base_url }}/{{ puppeteers_kubernetes_olm_version }}/checksums.txt"
+        dest: "{{ puppeteers_kubernetes_olm_staging_directory }}/checksums.txt"
+
+    - name: Fetch operator-sdk checksum file signatures
+      ansible.builtin.get_url:
+        url: "{{ puppeteers_kubernetes_olm_base_url }}/{{ puppeteers_kubernetes_olm_version }}/checksums.txt.asc"
+        dest: "{{ puppeteers_kubernetes_olm_staging_directory }}/checksums.txt.asc"
+
+    - name: Import operator-sdk public GPG key
+      ansible.builtin.command:
+        cmd: gpg --keyserver keyserver.ubuntu.com --recv-keys 052996E2A20B5C7E
+
+    - name: Validate operator-sdk installation with sha1sum
+      ansible.builtin.shell:
+        cmd: "cd {{ puppeteers_kubernetes_olm_staging_directory }} && grep {{ puppeteers_kubernetes_olm_filename }} checksums.txt | sha256sum -c -"
+
+    - name: Validate operator-sdk GPG signature
+      ansible.builtin.shell:
+        cmd: "cd {{ puppeteers_kubernetes_olm_staging_directory }} && gpg -u 'Operator SDK (release) <cncf-operator-sdk@cncf.io>' --verify checksums.txt.asc"
+
+    - name: Copy operator-sdk to /usr/local/bin
+      ansible.builtin.copy:
+        src: "{{ puppeteers_kubernetes_olm_staging_directory }}/{{ puppeteers_kubernetes_olm_filename }}"
+        remote_src: true
+        dest: /usr/local/bin/operator-sdk
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Check if we're running in k3s
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/k3s.yaml
+      register: k3s_config
+
+    - name: Create ~/.kube directory
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        owner: root
+        group: root
+        mode: '0750'
+      when: k3s_config.stat.exists
+
+    - name: Copy Rancher k3s.yaml to ~/.kube/config
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        remote_src: true
+        dest: /root/.kube/config
+        owner: root
+        group: root
+        mode: '0644'
+      when: k3s_config.stat.exists
+
+    - name: Install Operator Lifecycle Manager
+      ansible.builtin.command:
+        cmd: /usr/local/bin/operator-sdk olm install

@@ -37,8 +37,10 @@ Optional role  variables:
 
 This role installs Operator Lifecycle Manager with operator-sdk. It essentially
 replicates the [manual installation
-process](https://olm.operatorframework.io/docs/getting-started). You can
-optionally modify the following variables:
+process](https://olm.operatorframework.io/docs/getting-started). It does nothing if
+OLM is already installed.
+
+You can optionally modify the following variables:
 
 * **puppeteers_kubernetes_olm_staging_directory**: directory to put all downloaded files into
 * **puppeteers_kubernetes_olm_base_url**: base URL for operator-sdk
