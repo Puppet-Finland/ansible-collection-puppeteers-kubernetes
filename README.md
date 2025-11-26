@@ -33,6 +33,21 @@ Optional role  variables:
 * **puppeteers_kubernetes_awx_on_k3s_awx_version**: defaults to 2.19.1. As new versions are released new template files (awx.yaml and kustomization.yaml) need to be added to this role.
 * **puppeteers_kubernetes_awx_on_k3s_staging_directory**: staging directory for all the files this role needs for installing AWX on K3S. Defaults to a subdirectory under /root.
 
+## olm
+
+This role installs Operator Lifecycle Manager with operator-sdk. It essentially
+replicates the [manual installation
+process](https://olm.operatorframework.io/docs/getting-started). You can
+optionally modify the following variables:
+
+* **puppeteers_kubernetes_olm_staging_directory**: directory to put all downloaded files into
+* **puppeteers_kubernetes_olm_base_url**: base URL for operator-sdk
+* **puppeteers_kubernetes_olm_version**: version of operator-sdk (part of the download URL)
+* **puppeteers_kubernetes_olm_filename**: operator-sdk filename (part of the download URL)
+
+See [roles/olm/defaults/main.yml](roles/olm/defaults/main.yml) for details and
+default values.
+
 # License
 
 Code in this repository is licensed under BSD-2-Clause license. See
