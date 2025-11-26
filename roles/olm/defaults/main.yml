@@ -1,0 +1,5 @@
+---
+puppeteers_kubernetes_olm_staging_directory: /root/puppeteers-kubernetes-olm-staging
+puppeteers_kubernetes_olm_base_url: https://github.com/operator-framework/operator-sdk/releases/download
+puppeteers_kubernetes_olm_version: v1.42.0
+puppeteers_kubernetes_olm_filename: operator-sdk_linux_amd64
