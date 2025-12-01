@@ -1,0 +1,4 @@
+[[registry]]
+prefix = "{{ ansible_facts['facter_networking']['fqdn'] }}:{{ puppeteers_kubernetes_registry_expose_port }}"
+insecure = false
+location = "{{ ansible_facts['facter_networking']['fqdn'] }}:{{ puppeteers_kubernetes_registry_expose_port }}"

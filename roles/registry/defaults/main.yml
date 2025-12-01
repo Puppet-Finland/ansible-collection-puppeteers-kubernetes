@@ -1,0 +1,8 @@
+puppeteers_kubernetes_registry_ssl_cert_dir: /etc/ssl/certs
+puppeteers_kubernetes_registry_ssl_key_dir: /etc/ssl/private
+puppeteers_kubernetes_registry_ssl_cert: ssl-cert-snakeoil.pem
+puppeteers_kubernetes_registry_ssl_key: ssl-cert-snakeoil.key
+puppeteers_kubernetes_registry_data_volume: registry-data
+puppeteers_kubernetes_registry_certs_volume: registry-certs
+puppeteers_kubernetes_registry_volumes_basedir: /var/lib/containers/storage/volumes
+puppeteers_kubernetes_registry_expose_port: 8443

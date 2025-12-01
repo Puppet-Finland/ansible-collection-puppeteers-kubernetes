@@ -1,0 +1,99 @@
+---
+- name: Validate parameters
+  ansible.builtin.assert:
+    that:
+      - puppeteers_kubernetes_registry_ssl_cert_dir is string
+      - puppeteers_kubernetes_registry_ssl_key_dir is string
+      - puppeteers_kubernetes_registry_ssl_cert is string
+      - puppeteers_kubernetes_registry_ssl_key is string
+      - puppeteers_kubernetes_registry_data_volume is string
+      - puppeteers_kubernetes_registry_certs_volume is string
+      - puppeteers_kubernetes_registry_volumes_basedir is string
+      - puppeteers_kubernetes_registry_expose_port is number
+
+- name: Install dependencies (Ubuntu)
+  ansible.builtin.package:
+    name: ssl-cert
+    state: present
+
+- name: Generate snakeoil certificates (Ubuntu)
+  ansible.builtin.command:
+    cmd: make-ssl-cert generate-default-snakeoil
+    creates: "/etc/ssl/certs/{{ puppeteers_kubernetes_registry_ssl_cert }}"
+
+- name: Add podman volume
+  containers.podman.podman_volume:
+    state: present
+    name: "{{ item }}"
+  loop:
+    - "{{ puppeteers_kubernetes_registry_data_volume }}"
+    - "{{ puppeteers_kubernetes_registry_certs_volume }}"
+
+- name: Add podman volume systemd quadlet
+  containers.podman.podman_volume:
+    name: "{{ item }}"
+    state: quadlet
+  loop:
+    - "{{ puppeteers_kubernetes_registry_data_volume }}"
+    - "{{ puppeteers_kubernetes_registry_certs_volume }}"
+  notify:
+    - Run systemctl daemon-reload
+
+- name: Copy cert to volume
+  ansible.builtin.copy:
+    src: "{{ puppeteers_kubernetes_registry_ssl_cert_dir }}/{{ puppeteers_kubernetes_registry_ssl_cert }}"
+    remote_src: true
+    dest: "{{ puppeteers_kubernetes_registry_volumes_basedir }}/{{ puppeteers_kubernetes_registry_certs_volume }}/_data/{{ puppeteers_kubernetes_registry_ssl_cert }}"
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy key to volume
+  ansible.builtin.copy:
+    src: "{{ puppeteers_kubernetes_registry_ssl_key_dir }}/{{ puppeteers_kubernetes_registry_ssl_key }}"
+    remote_src: true
+    dest: "{{ puppeteers_kubernetes_registry_volumes_basedir }}/{{ puppeteers_kubernetes_registry_certs_volume }}/_data/{{ puppeteers_kubernetes_registry_ssl_key }}"
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Add registry container
+  containers.podman.podman_container:
+    name: "registry"
+    image: docker.io/library/registry:3
+    ports:
+      - "{{ puppeteers_kubernetes_registry_expose_port }}:443"
+    volumes:
+      - "{{ puppeteers_kubernetes_registry_data_volume }}:/var/lib/registry:rw"
+      - "{{ puppeteers_kubernetes_registry_certs_volume }}:/certs:ro"
+    env:
+      REGISTRY_HTTP_ADDR: "0.0.0.0:443"
+      REGISTRY_HTTP_TLS_CERTIFICATE: "/certs/{{ puppeteers_kubernetes_registry_ssl_cert }}"
+      REGISTRY_HTTP_TLS_KEY: "/certs/{{ puppeteers_kubernetes_registry_ssl_key }}"
+    state: created
+
+- name: Create Quadlet for the registry container
+  containers.podman.podman_container:
+    name: "registry"
+    image: docker.io/library/registry:3
+    ports:
+      - "{{ puppeteers_kubernetes_registry_expose_port }}:443"
+    volumes:
+      - "{{ puppeteers_kubernetes_registry_data_volume }}:/var/lib/registry:rw"
+      - "{{ puppeteers_kubernetes_registry_certs_volume }}:/certs:ro"
+    env:
+      REGISTRY_HTTP_ADDR: "0.0.0.0:443"
+      REGISTRY_HTTP_TLS_CERTIFICATE: "/certs/{{ puppeteers_kubernetes_registry_ssl_cert }}"
+      REGISTRY_HTTP_TLS_KEY: "/certs/{{ puppeteers_kubernetes_registry_ssl_key }}"
+    state: quadlet
+  notify:
+    - Run systemctl daemon-reload
+    - Restart registry service
+
+- name: Local registry configuration
+  ansible.builtin.template:
+    src: 900-local-registry.conf.j2
+    dest: /etc/containers/registries.conf.d/900-local-registry.conf
+    owner: root
+    group: root
+    mode: '0644'

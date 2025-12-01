@@ -1,0 +1,9 @@
+---
+- name: Run systemctl daemon-reload
+  ansible.builtin.command:
+    cmd: systemctl daemon-reload
+
+- name: Restart registry service
+  ansible.builtin.service:
+    name: registry
+    state: restarted

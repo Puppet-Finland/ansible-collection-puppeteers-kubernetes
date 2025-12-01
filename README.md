@@ -50,6 +50,52 @@ You can optionally modify the following variables:
 See [roles/olm/defaults/main.yml](roles/olm/defaults/main.yml) for details and
 default values.
 
+## registry
+
+This role installs the official [Docker
+registry](https://hub.docker.com/_/registry) on a host. It is intended to run
+outside of Kubernetes, e.g. on a build host. It depends on Podman and Podman
+Quadlets:
+
+* https://www.redhat.com/en/blog/quadlet-podman
+* https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html
+
+Basically the container and its dependencies run as systemd units. The service
+that manages the registry is rather intuitively called "registry.service".
+
+It creates two volumes (*registry-data* and *registry-certs*) and populates the
+latter with self-signed certificates. The container is configured to listen on
+port 443, which is expose, by default, as port 8443 on the host.
+
+The setup is insecure in the sense that there is no authentication for
+accessing the repository. We highly recommend limiting access to the repository
+to only hosts that need it. As it stands, it is mainly useful for minimal k3s
+environments where a container registry is needed, but spinning up something
+like Quay.io (and its fatty dependency, Noobaa), is an overkill.
+
+To push to the registry with podman you need to add a registry configuration,
+e.g.  */etc/containers/registries.conf.d/900-local-registry.conf* with contents
+like this:
+
+```
+[[registry]]
+prefix = "registry.example.com:8443"
+insecure = false
+location = "registry.example.com:8443"
+```
+
+The `insecure = false` setting ensures that podman does not choke on the
+self-signed certificate. Once all of this is set up, you can push to the
+registry, inspect its contents, etc. as usual. For example:
+
+    $ podman push docker.io/library/nginx docker://registry.example.com:8443/nginx
+    $ skopeo inspect docker://builder.beta.kaiwoo.vpn:8443/nginx
+    $ skopeo delete docker://builder.beta.kaiwoo.vpn:8443/nginx
+
+Typically you do not need to touch any of the default variables in this role.
+Nevertheless you can have a look at the customization options in
+[roles/registry/defaults/main.yml](roles/registry/defaults/main.yml). 
+
 # License
 
 Code in this repository is licensed under BSD-2-Clause license. See
