@@ -12,8 +12,11 @@
       - puppeteers_kubernetes_registry_expose_port is number
 
 - name: Install dependencies (Ubuntu)
-  ansible.builtin.package:
-    name: ssl-cert
+  ansible.builtin.apt:
+    name:
+      - ssl-cert
+      - podman
+      - skopeo
     state: present
 
 - name: Generate snakeoil certificates (Ubuntu)
