@@ -50,6 +50,23 @@ runs raw *kubectl* commands against yaml files in a staging directory.
 The only parameter for this role is *ns*, which defines the namespace to create
 and configure.
 
+Once this role has been applied, you can generate a short lifespan
+ServiceAccount token for later tasks. Example:
+
+```
+- name: Get short lifespan ServiceAccount token for the rest of the plays
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/kubectl create token ansible --duration 15m --namespace my_namespace"
+  register: create_token_cmd
+
+- name: Store token as a fact
+  ansible.builtin.set_fact:
+    api_key: "{{ create_token_cmd.stdout }}"
+```
+
+You can then use *api_key* with *kubernetes.core.k8s* or other tasks that
+require an API key.
+
 ## aws_on_k3s
 
 The *puppeteers.kubernetes.awx_on_k3s* role Installs AWX (formerly known as
