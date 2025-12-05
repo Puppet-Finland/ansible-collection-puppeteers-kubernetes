@@ -1,0 +1,56 @@
+- name: Validate parameters
+  ansible.builtin.assert:
+    that:
+      - puppeteers_kubernetes_certificate_manager_namespace is string
+      - puppeteers_kubernetes_certificate_manager_k3s_host is string
+      - puppeteers_kubernetes_certificate_manager_version is string
+
+- name: Fetch k3s server CA certificate
+  ansible.builtin.fetch:
+    src: /var/lib/rancher/k3s/agent/server-ca.crt
+    dest: download
+    flat: false
+
+- name: Set convenience variables
+  ansible.builtin.set_fact:
+    ns: "{{ puppeteers_kubernetes_certificate_manager_namespace }}"
+    host: "{{ puppeteers_kubernetes_certificate_manager_k3s_host }}"
+    ca_cert: "{{ playbook_dir }}/download/{{ inventory_hostname }}/var/lib/rancher/k3s/agent/server-ca.crt"
+
+- name: Import role
+  ansible.builtin.import_role:
+    name: puppeteers.kubernetes.ns_with_sa
+  vars:
+    ns: "{{ ns }}"
+
+- name: Get short lifespan ServiceAccount token for the rest of the plays
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/kubectl create token ansible --duration 15m --namespace {{ ns }}"
+  register: create_token_cmd
+
+- name: Store token as a fact
+  ansible.builtin.set_fact:
+    api_key: "{{ create_token_cmd.stdout }}"
+
+- name: Install certificate-manager Helm chart
+  kubernetes.core.k8s:
+    state: present
+    api_key: "{{ api_key }}"
+    ca_cert: "{{ ca_cert }}"
+    host: "{{ host }}"
+    definition:
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: certificate-manager
+        namespace: "{{ ns }}"
+      spec:
+        chart: oci://quay.io/jetstack/charts/cert-manager
+        targetNamespace: "{{ ns }}"
+        version: "{{ puppeteers_kubernetes_certificate_manager_version }}"
+        createNamespace: false
+        valuesContent: |-
+          crds:
+            enabled: true
+            keep: true
+  delegate_to: localhost

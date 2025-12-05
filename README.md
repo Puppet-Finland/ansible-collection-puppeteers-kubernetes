@@ -67,6 +67,19 @@ ServiceAccount token for later tasks. Example:
 You can then use *api_key* with *kubernetes.core.k8s* or other tasks that
 require an API key.
 
+## certificate_manager
+
+This role install [certificate-manager](https://cert-manager.io). The first
+part sets up the namespace and create role, role binding and service account
+for Ansible. The second part uses a service account token to apply a HelmChart
+custom resource definition ([available by default on k3s](https://docs.k3s.io/add-ons/helm).
+
+The relevant parameters are:
+
+* **puppeteers_kubernetes_certificate_manager_k3s_host**: the k3s host that will run certificate-manager
+* **puppeteers_kubernetes_certificate_manager_namespace**: namespace to create certificate-manager resources in (default: certificate-manager)
+* **puppeteers_kubernetes_certificate_manager_version**: version of certificate-manager to install; default in [roles/certificate_manager/defaults/main.yml](roles/certificate_manager/defaults/main.yml)
+
 ## aws_on_k3s
 
 The *puppeteers.kubernetes.awx_on_k3s* role Installs AWX (formerly known as
