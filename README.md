@@ -17,6 +17,39 @@ Optional role variables:
 * **puppeteers_kubernetes_k3s_staging_directory**: staging directory for the files this role needs for installing K3S. Defaults to a subdirectory under /root.
 * **puppeteers_kubernetes_k3s_disable_conflicting_services**: whether to automatically disable conflicting services (firewalld, nm-cloud-setup). Defaults to *false*. 
 
+## apply_yaml
+
+With this role you can "kubectl apply" arbitrary yaml files on a host. You also
+"kubectl delete" resources defined in those files as well. The important role
+parameters are:
+
+* **puppeteers_kubernetes_apply_yaml_src**: location of the yaml file *templates* on the Ansible controller; this should be "." if you use this from within another role
+* **puppeteers_kubernetes_apply_yaml_present**: list of yaml files to run "kubectl apply" against
+* **puppeteers_kubernetes_apply_yaml_absent**: list of yaml files to run "kubectl delete" against
+
+See [roles/apply_yaml/defaults/main.yml](roles/apply_yaml/defaults/main.yml) to
+see what other parameters are available.
+
+For example usage see [roles/ns_with_sa/tasks/main.yml](roles/ns_with_sa/tasks/main.yml).
+
+## ns_with_sa
+
+The *ns_with_sa* role creates the following resources for a given namespace:
+
+* Namespace
+* Role
+* RoleBinding
+* ServiceAccount
+
+The purpose is to set up a namespace which has a ServiceAccount that Ansible
+can use, while limiting Ansible's access to just that particular namespace.
+
+Under the hood the *ns_with_sa* role calls the *apply_yaml* role, which in turn
+runs raw *kubectl* commands against yaml files in a staging directory.
+
+The only parameter for this role is *ns*, which defines the namespace to create
+and configure.
+
 ## aws_on_k3s
 
 The *puppeteers.kubernetes.awx_on_k3s* role Installs AWX (formerly known as
