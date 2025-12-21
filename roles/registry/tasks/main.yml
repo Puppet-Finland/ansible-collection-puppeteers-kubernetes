@@ -100,3 +100,9 @@
     owner: root
     group: root
     mode: '0644'
+
+- name: Add garbage collection cronjob
+  ansible.builtin.cron:
+    name: registry-garbage-collect
+    minute: 35
+    job: "(echo; echo -n \"Garbage collection started \"; date -u; echo) >> /var/log/registry-garbage-collect.log && /usr/bin/podman exec -it registry registry garbage-collect /etc/distribution/config.yml --delete-untagged | tee -a /var/log/registry-garbage-collect.log"
