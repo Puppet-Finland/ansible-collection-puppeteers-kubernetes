@@ -126,13 +126,29 @@ Quadlets:
 Basically the container and its dependencies run as systemd units. The service
 that manages the registry is rather intuitively called "registry.service".
 
-It creates two volumes (*registry-data* and *registry-certs*) and populates the
-latter with self-signed certificates. The container is configured to listen on
-port 443, which is expose, by default, as port 8443 on the host.
+It creates three volumes:
+* **registry-auth**: htpasswd file
+* **registry-data**: registry data
+* **registry-certs**: self-signed certificates
 
-The setup is insecure in the sense that there is no authentication for
-accessing the repository. We highly recommend limiting access to the repository
-to only hosts that need it. As it stands, it is mainly useful for minimal k3s
+The container is configured to listen on port 443, which is expose, by default,
+as port 8443 on the host.
+
+By default no registry users are created. To be able to access the registry you
+need to add some by passing a dictionary with username and password pairs:
+
+    puppeteers_kubernetes_registry_htpasswd_users:
+        joe: somepassword
+        jane: anotherpassword
+
+This feature has two dependencies:
+
+* Python *passlib* must be installed on the target host; this is handled by the role for Debian-based operating systems only
+* *community.general* collection must be installed on the controller
+
+Note that each user account has full push and pull access to the registry.
+Therefore we highly recommend limiting access to the repository to only hosts
+that need it. This role is primarily intended to be used with minimal k3s
 environments where a container registry is needed, but spinning up something
 like Quay.io (and its fatty dependency, Noobaa), is an overkill.
 
@@ -155,8 +171,9 @@ registry, inspect its contents, etc. as usual. For example:
     $ skopeo inspect docker://builder.beta.kaiwoo.vpn:8443/nginx
     $ skopeo delete docker://builder.beta.kaiwoo.vpn:8443/nginx
 
-Typically you do not need to touch any of the default variables in this role.
-Nevertheless you can have a look at the customization options in
+Typically you do not need to touch any of the default variables in this role,
+except for htpasswd entries.  Nevertheless you can have a look at the
+customization options in
 [roles/registry/defaults/main.yml](roles/registry/defaults/main.yml). 
 
 # License

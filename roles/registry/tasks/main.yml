@@ -6,10 +6,12 @@
       - puppeteers_kubernetes_registry_ssl_key_dir is string
       - puppeteers_kubernetes_registry_ssl_cert is string
       - puppeteers_kubernetes_registry_ssl_key is string
+      - puppeteers_kubernetes_registry_auth_volume is string
       - puppeteers_kubernetes_registry_data_volume is string
       - puppeteers_kubernetes_registry_certs_volume is string
       - puppeteers_kubernetes_registry_volumes_basedir is string
       - puppeteers_kubernetes_registry_expose_port is number
+      - puppeteers_kubernetes_registry_htpasswd_users is not string and puppeteers_kubernetes_registry_htpasswd_users is iterable and puppeteers_kubernetes_registry_htpasswd_users is mapping
 
 - name: Install dependencies (Ubuntu)
   ansible.builtin.apt:
@@ -29,16 +31,42 @@
     state: present
     name: "{{ item }}"
   loop:
-    - "{{ puppeteers_kubernetes_registry_data_volume }}"
+    - "{{ puppeteers_kubernetes_registry_auth_volume }}"
     - "{{ puppeteers_kubernetes_registry_certs_volume }}"
+    - "{{ puppeteers_kubernetes_registry_data_volume }}"
+
+- name: Install Python3 passlib for Ubuntu or Debian
+  ansible.builtin.package:
+    name: python3-passlib
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Create empty htpasswd file
+  ansible.builtin.file:
+    state: touch
+    path: "{{ puppeteers_kubernetes_registry_volumes_basedir }}/{{ puppeteers_kubernetes_registry_auth_volume }}/_data/htpasswd"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Populate registry htpasswd file
+  community.general.htpasswd:
+    state: present
+    create: false
+    path: "{{ puppeteers_kubernetes_registry_volumes_basedir }}/{{ puppeteers_kubernetes_registry_auth_volume }}/_data/htpasswd"
+    name: "{{ item.key }}"
+    password: "{{ item.value }}"
+    hash_scheme: bcrypt
+  loop: "{{ puppeteers_kubernetes_registry_htpasswd_users | dict2items }}"
 
 - name: Add podman volume systemd quadlet
   containers.podman.podman_volume:
     name: "{{ item }}"
     state: quadlet
   loop:
-    - "{{ puppeteers_kubernetes_registry_data_volume }}"
+    - "{{ puppeteers_kubernetes_registry_auth_volume }}"
     - "{{ puppeteers_kubernetes_registry_certs_volume }}"
+    - "{{ puppeteers_kubernetes_registry_data_volume }}"
   notify:
     - Run systemctl daemon-reload
 
@@ -69,10 +97,14 @@
     volumes:
       - "{{ puppeteers_kubernetes_registry_data_volume }}:/var/lib/registry:rw"
       - "{{ puppeteers_kubernetes_registry_certs_volume }}:/certs:ro"
+      - "{{ puppeteers_kubernetes_registry_auth_volume }}:/auth:ro"
     env:
       REGISTRY_HTTP_ADDR: "0.0.0.0:443"
       REGISTRY_HTTP_TLS_CERTIFICATE: "/certs/{{ puppeteers_kubernetes_registry_ssl_cert }}"
       REGISTRY_HTTP_TLS_KEY: "/certs/{{ puppeteers_kubernetes_registry_ssl_key }}"
+      REGISTRY_AUTH: "htpasswd"
+      REGISTRY_AUTH_HTPASSWD_PATH: "/auth/htpasswd"
+      REGISTRY_AUTH_HTPASSWD_REALM: "Registry realm"
     state: created
 
 - name: Create Quadlet for the registry container
@@ -84,10 +116,14 @@
     volumes:
       - "{{ puppeteers_kubernetes_registry_data_volume }}:/var/lib/registry:rw"
       - "{{ puppeteers_kubernetes_registry_certs_volume }}:/certs:ro"
+      - "{{ puppeteers_kubernetes_registry_auth_volume }}:/auth:ro"
     env:
       REGISTRY_HTTP_ADDR: "0.0.0.0:443"
       REGISTRY_HTTP_TLS_CERTIFICATE: "/certs/{{ puppeteers_kubernetes_registry_ssl_cert }}"
       REGISTRY_HTTP_TLS_KEY: "/certs/{{ puppeteers_kubernetes_registry_ssl_key }}"
+      REGISTRY_AUTH: "htpasswd"
+      REGISTRY_AUTH_HTPASSWD_PATH: "/auth/htpasswd"
+      REGISTRY_AUTH_HTPASSWD_REALM: "Registry realm"
     state: quadlet
   notify:
     - Run systemctl daemon-reload
