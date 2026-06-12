@@ -1,0 +1,4 @@
+puppeteers_kubernetes_registry_metrics_crictl: /usr/local/bin/crictl
+puppeteers_kubernetes_registry_metrics_metrics_file: /var/lib/node_exporter/registry_pull.prom
+puppeteers_kubernetes_registry_metrics_image: busybox
+puppeteers_kubernetes_registry_metrics_tag: latest

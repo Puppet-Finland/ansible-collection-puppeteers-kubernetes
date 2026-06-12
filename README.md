@@ -176,6 +176,34 @@ except for htpasswd entries.  Nevertheless you can have a look at the
 customization options in
 [roles/registry/defaults/main.yml](roles/registry/defaults/main.yml). 
 
+## registry_metrics
+
+This role sets up a script and a config that test pulling an image from a
+private registry server. The script then produces Prometheus Node Exporter
+compatible metrics out of the results. The role also sets up a hourly cronjob
+to run the script.
+
+The metrics generation script depends on a suitable test image being present in
+the registry. It is recommended to copy a small test image. For example:
+
+    skopeo login -u someuser -p somepassword --tls-verify=false repo.example.org:8443
+    skopeo copy --dest-tls-verify=false docker://docker.io/library/busybox:latest docker://repo.example.org:8443/busybox:latest
+
+The script assumes that crictl is available, although its path can be customized.
+
+The role has on a number variables:
+
+* *puppeteers_kubernetes_registry_metrics_registry_username*: username for the private registry
+* *puppeteers_kubernetes_registry_metrics_registry_password*: password for the private registry
+* *puppeteers_kubernetes_registry_metrics_registry_host*: private registry host
+* *puppeteers_kubernetes_registry_metrics_registry_port*: private registry port
+* *puppeteers_kubernetes_registry_metrics_crictl*: path to crictl executable
+* *puppeteers_kubernetes_registry_metrics_image*: image to pull
+* *puppeteers_kubernetes_registry_metrics_tag*: image tag to use
+* *puppeteers_kubernetes_registry_metrics_metrics_file*: path to the resulting Textfile Collector metrics file
+
+Many of these have [defaults values](roles/registry_metrics/defaults/main.yml).
+
 # License
 
 Code in this repository is licensed under BSD-2-Clause license. See

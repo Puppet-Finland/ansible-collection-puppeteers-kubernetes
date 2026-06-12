@@ -1,0 +1,35 @@
+---
+- name: Validate parameters
+  ansible.builtin.assert:
+    that:
+      - puppeteers_kubernetes_registry_metrics_registry_username is defined
+      - puppeteers_kubernetes_registry_metrics_registry_password is defined
+      - puppeteers_kubernetes_registry_metrics_registry_host is string
+      - puppeteers_kubernetes_registry_metrics_registry_port is number
+      - puppeteers_kubernetes_registry_metrics_crictl is string
+      - puppeteers_kubernetes_registry_metrics_image is string
+      - puppeteers_kubernetes_registry_metrics_tag is string
+      - puppeteers_kubernetes_registry_metrics_metrics_file is string
+
+- name: Copy metrics generation script
+  ansible.builtin.copy:
+    src: files/generate-registry-metrics.sh
+    dest: /usr/local/bin/generate-registry-metrics.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy metrics generation config
+  ansible.builtin.template:
+    src: templates/generate-registry-metrics.conf.j2
+    dest: /etc/generate-registry-metrics.conf
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Add cronjob to generate metrics
+  ansible.builtin.cron:
+    name: Generate registry metrics for Prometheus Node Exporter Textfile Collector
+    job: /usr/local/bin/generate-registry-metrics.sh
+    special_time: "hourly"
+    user: root
