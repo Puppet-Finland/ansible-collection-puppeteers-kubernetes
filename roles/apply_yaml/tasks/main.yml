@@ -11,8 +11,6 @@
   ansible.builtin.file:
     path: "{{ puppeteers_kubernetes_apply_yaml_staging_directory }}"
     state: directory
-    owner: root
-    group: root
     mode: '0750'
 
 - name: Set list of desired yaml files
@@ -24,8 +22,6 @@
   ansible.builtin.template:
     src: "{{ puppeteers_kubernetes_apply_yaml_src }}/{{ item }}.yaml"
     dest: "{{ puppeteers_kubernetes_apply_yaml_staging_directory }}/{{ item }}.yaml"
-    owner: root
-    group: root
     mode: '0640'
   loop: "{{ present_k8s_configs }}"
   notify:
